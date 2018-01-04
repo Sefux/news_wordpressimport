@@ -2,17 +2,12 @@
   "name": "projektkater/news-wordpressimport",
   "type": "typo3-cms-extension",
   "description": "Importer of wordpress items to ext:news",
-  "homepage": "https://github.com/sebfux/news_wordpressimport",
+  "homepage": "https://github.com/sefux/news_wordpressimport",
   "license": "GPL-2.0+",
   "keywords": ["TYPO3 CMS"],
   "require": {
       "georgringer/news": "^6.0",
       "typo3/cms-core": "^7.6.13 || >=8.5.0 <9"
-  },
-  "replace": {
-      "projektkater_news_wordpressimport": "self.version",
-      "news_wordpressimport": "self.version",
-      "typo3-ter/news-wordpressimport": "self.version"
   },
   "autoload": {
     "psr-4": {
