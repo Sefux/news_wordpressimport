@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<T3locallang>
+	<meta type="array">
+		<type>database</type>
+		<description>Language labels for backend of news wordpressimport</description>
+	</meta>
+	<data type="array">
+		<languageKey index="default" type="array">
+			<label index="wordpress_importer_title">Import tt_news news records</label>
+			<label index="wordpresscategory_importer_title">Import tt_news category records</label>
+			<label index="mblnewsevent_importer_title">Import mbl_newsevent data to existing news records (requires roq_newsevent)</label>
+			<label index="dammediatag_converter_title">Convert DAM media tags in imported news records to FAL link tags</label>
+		</languageKey>
+
+		<languageKey index="da" type="array">
+			<label index="wordpress_importer_title">Import af tt_news news elementer</label>
+			<label index="wordpresscategory_importer_title">Import af tt_news kategori-elementer</label>
+		</languageKey>
+
+		<languageKey index="de" type="array">
+			<label index="wordpress_importer_title">Import von tt_news Datensätzen</label>
+			<label index="wordpresscategory_importer_title">Import von tt_news Kategorien</label>
+			<label index="mblnewsevent_importer_title">Import von mbl_newsevent Daten in bestehende News-Records (benötigt roq_newsevent)</label>
+            <label index="dammediatag_converter_title">DAM media-Tags in importierten News-Records zu FAL-Links konvertieren</label>
+		</languageKey>
+
+		<languageKey index="nl" type="array">
+			<label index="wordpress_importer_title">Importeer tt_news records</label>
+			<label index="wordpresscategory_importer_title">Importeer tt_news categorie records</label>
+		</languageKey>
+	</data>
+</T3locallang>
