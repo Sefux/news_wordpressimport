@@ -26,6 +26,11 @@ namespace Projektkater\NewsWordpressimport\Service\Import;
 
 use GeorgRinger\News\Service\Import\DataProviderServiceInterface;
 use \TYPO3\CMS\Core\Utility\GeneralUtility;
+use \TYPO3\CMS\Core\Utility\PathUtility;
+use \TYPO3\CMS\Core\Utility\DebugUtility;
+
+use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 
 /**
  * wordpress ImportService
@@ -39,19 +44,48 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 	protected $importPid = 21;
 
 	/**
+	*	constructor
+	*/
+	public function __construct() {
+		$logger = GeneralUtility::makeInstance('TYPO3\CMS\Core\Log\LogManager')->getLogger(__CLASS__);
+		$this->logger = $logger;
+	}
+
+	
+	/**
 	 * Get total record count
 	 *
 	 * @return integer
 	 */
 	public function getTotalRecordCount() {
+		$count = 0;
+		/*
 		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('count(*)',
 			'wp_posts',
 			'posts_type="POST" and post_status="publish"'
 		);
-
 		list($count) = $GLOBALS['TYPO3_DB']->sql_fetch_row($res);
-		$GLOBALS['TYPO3_DB']->sql_free_result($res);
-
+		$GLOBALS['TYPO3_DB']->sql_free_result($res);			
+*/
+		
+		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_posts');
+		
+		$statement = $queryBuilder
+				->count('*')
+    			->from('wp_posts')    
+				->where(
+				    $queryBuilder->expr()->eq('post_type', '"POST"'),
+					$queryBuilder->expr()->eq('post_status', '"publish"')
+				)
+    			->execute();
+		$sql = $queryBuilder->getSQL();
+		$count = $statement->fetchColumn(0);
+		
+		$this->logger->info(sprintf('START: Counting wordpress posts: %s ', $count));
+		
+	//	$this->logger->info(sprintf('SQL:   "%s" ', $sql));
+		
+		//return 10;
 		return (int)$count;
 	}
 
@@ -64,17 +98,31 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 	 */
 	public function getImportData($offset = 0, $limit = 50) {
 		$importData = array();
-
+		/*
 		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('*',
 			'wp_posts',
-			'posts_type="POST" and post_status="publish"'
+			'posts_type="POST" and post_status="publish"',
 			'',
 			'post_date DESC',
 			$offset . ',' . $limit
 		);
+		*/
+		//echo 'check';
+		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_posts');
+		$statement = $queryBuilder->select('*')
+    			->from('wp_posts')    
+				->where(
+					$queryBuilder->expr()->eq('post_type', '"POST"'),
+					$queryBuilder->expr()->eq('post_status', '"publish"')
+				)
+				->orderBy('post_date')
+				->setMaxResults($limit)
+   				->setFirstResult($offset)
+    			->execute();
+		$sql = $queryBuilder->getSQL();
+		//$this->logger->info(sprintf('IMPORT POSTS SQL:   "%s" ', $sql));
 
-		while ($row = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)) {
-
+		while ($row = $statement->fetch()) {
 			$importData[] = array(
 				'pid' => $this->importPid,
 				'hidden' => ($row['post_status']=="publish" ? 0 : 1),
@@ -94,12 +142,12 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 				//'archive' => $row['archivedate'],
 				'author' => $row['post_author'],
 				//'author_email' => $row['author_email'],
-				//'type' => $row['type'],
+				'type' => 0,//$row['type'],
 				//'keywords' => $row['keywords'],
 				//'externalurl' => $row['ext_url'],
 				//'internalurl' => $row['page'],
-				//'categories' => $this->getCategories($row['uid']),
-				//'media' => $this->getMedia($row),
+				'categories' => $this->getCategories($row['ID']),
+				'media' => $this->getMedia($row),
 				//'related_files' => $this->getFiles($row),
 				//'related_links' => array_key_exists('tx_tlnewslinktext_linktext', $row) ? $this->getRelatedLinksTlNewsLinktext($row['links'], $row['tx_tlnewslinktext_linktext']) : $this->getRelatedLinks($row['links']),
 				//'content_elements' => $row['tx_rgnewsce_ce'],
@@ -107,9 +155,9 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 				'import_source' => $this->importSource
 			);
 		}
-		$GLOBALS['TYPO3_DB']->sql_free_result($res);
-
+		
 		return $importData;
+		//return array();
 	}
 
 	/**
@@ -155,15 +203,21 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 	protected function getCategories($newsUid) {
 		$categories = array();
 
-		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('*',
-			'tt_news_cat_mm',
-			'uid_local=' . $newsUid);
+		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_term_relationships');
+		$statement = $queryBuilder->select('*')
+    			->from('wp_term_relationships') 
+				->where(
+					$queryBuilder->expr()->eq('object_id', $newsUid)
+				)
+    			->execute();
+		$sql = $queryBuilder->getSQL();
+		$this->logger->info(sprintf('IMPORT CATEGORIE SQL:   "%s" ', $sql));
+	
 
-		while ($row = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)) {
-			$categories[] = $row['uid_foreign'];
+		while ($row = $statement->fetch()) {
+			$categories[] = $row['term_taxonomy_id'];
 		}
-
-		$GLOBALS['TYPO3_DB']->sql_free_result($res);
+		$this->logger->info(sprintf('IMPORT CATEGORIE FOR UID:   "%s" ', $newsUid), $categories);
 
 		return $categories;
 	}
@@ -176,54 +230,66 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 	 */
 	protected function getMedia(array $row) {
 		$media = array();
-		$count = 0;
 
-		// tx_damnews_dam_images
-		if (!empty($row['tx_damnews_dam_images'])) {
+		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_postmeta');
+		$statement = $queryBuilder->select('*')
+    			->from('wp_postmeta') 
+				->join(
+					'wp_postmeta',
+					'wp_posts',
+					'image',
+					$queryBuilder->expr()->eq(
+					 'wp_postmeta.meta_value',
+					 $queryBuilder->quoteIdentifier('image.ID')
+				 	),
+					$queryBuilder->expr()->eq('post_type', '"attachment"')
+				) 
+				->where(
+					$queryBuilder->expr()->eq('meta_key', '"_thumbnail_id"'),
+					$queryBuilder->expr()->eq('post_id', $row['ID'])
+				)
+    			->execute();
+				$queryBuilderMeta = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_postmeta');
+				$meta_statement = $queryBuilderMeta->select('wp_postmeta.*')
+		    			->from('wp_postmeta') 
+						->join(
+							'wp_postmeta',
+							'wp_postmeta',
+							'parentmeta',
+							$queryBuilderMeta->expr()->eq(
+							 'wp_postmeta.post_id',
+							 $queryBuilderMeta->quoteIdentifier('parentmeta.meta_value')
+						 	)
+						) 
+						->where(
+							$queryBuilderMeta->expr()->eq('parentmeta.meta_key', '"_thumbnail_id"'),
+							$queryBuilderMeta->expr()->eq('wp_postmeta.meta_key', '"_wp_attached_file"'),
+							$queryBuilderMeta->expr()->eq('parentmeta.post_id', $row['ID'])
+						)
+		    			->execute();
+					$meta_row = $meta_statement->fetch();
+						
+		$sql = $queryBuilderMeta->getSQL();
+		
+	
 
-			// get DAM data
-			$files = $this->getDamItems($row['uid'], 'tx_damnews_dam_images');
-
-			$captions = GeneralUtility::trimExplode(chr(10), $row['imagecaption'], FALSE);
-			$alts = GeneralUtility::trimExplode(chr(10), $row['imagealttext'], FALSE);
-			$titles = GeneralUtility::trimExplode(chr(10), $row['imagetitletext'], FALSE);
-
-			foreach ($files as $damUid => $file) {
+		while ($image = $statement->fetch()) {
+			$this->logger->info(sprintf('SEARCH IMAGE SQL:   "%s" ', $sql));
 				$media[] = array(
-					'title' => $titles[$count],
-					'alt' => $alts[$count],
-					'caption' => $captions[$count],
-					'image' => $file,
-					'showinpreview' => (int)$count == 0
-				);
-				$count++;
-			}
-		}
-
-		if (!empty($row['image'])) {
-			$images = GeneralUtility::trimExplode(',', $row['image'], TRUE);
-			$captions = GeneralUtility::trimExplode(chr(10), $row['imagecaption'], FALSE);
-			$alts = GeneralUtility::trimExplode(chr(10), $row['imagealttext'], FALSE);
-			$titles = GeneralUtility::trimExplode(chr(10), $row['imagetitletext'], FALSE);
-
-			$i = 0;
-			foreach ($images as $image) {
-				$media[] = array(
-					'title' => $titles[$i],
-					'alt' => $alts[$i],
-					'caption' => $captions[$i],
-					'image' => 'uploads/pics/' . $image,
+					'title' => $image['post_title'],
+					'alt' => $image['post_excerpt'],
+					'caption' => $image['post_content'],
+					'image' => "1:archive/".$meta_row['meta_value'],
 					'type' => 0,
-					'showinpreview' => (int)$count == 0
+					'showinpreview' => 1
 				);
-				$i ++;
-				$count ++;
-			}
+			
 		}
-
-		$media = array_merge($media, $this->getMultimediaItems($row));
-
+		
+		//$media = array_merge($media, $this->getMultimediaItems($row));
+		$this->logger->info(sprintf('FOUND MEDIA:   "%s" ', $row['ID']), $media);
 		return $media;
+		//return array();
 	}
 
 	/**

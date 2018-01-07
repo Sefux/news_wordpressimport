@@ -21,6 +21,18 @@ First install your wordpress sql backup into your TYPO3 database.
 mysql -u username -p database_name < file.sql
 
 
+Migrate images
+--------------
+
+The physical import of the images was the easy part: Copy all images to the fileadmin folder and delete all generated/resized pictures of WordPress (files with the resolution as suffix). I used this command:
+
+.. code-block:: bash
+
+	# Delete thumbnails, only keep original images 
+    $ find -E .  -regex ".*[0-9]{3}x[0-9]{2,3}\.jpg" | xargs rm
+    $ find -E .  -regex ".*[0-9]{3}x[0-9]{2,3}\.png" | xargs rm
+
+
 Migrate records
 ---------------
 
@@ -59,6 +71,26 @@ The following 3rd party extensions are supported during the migration and are no
 * tl_news_linktext: Related links are migrated to ext:news link elements
 * EXT:mbl_newsevent are migrated to the available fields of EXT:roq_newsevent (News event extension for EXT:news)
 
+# clean up during Development
+DELETE FROM tx_news_domain_model_news WHERE pid=21
+
+# use to find image per post
+SELECT * FROM `wp_postmeta` INNER JOIN `wp_posts` `image` ON `wp_postmeta`.`meta_value` = `image`.`ID` WHERE (`meta_key` = "_thumbnail_id") AND (`post_id` = 4895)
+
+SELECT * FROM `wp_postmeta` 
+INNER JOIN `wp_posts` `image` ON `wp_postmeta`.`meta_value` = `image`.`ID` 
+INNER JOIN `wp_postmeta` `meta` ON `wp_postmeta`.`post_id` = `meta`.`meta_value` 
+WHERE (`wp_postmeta`.`meta_key` = "_thumbnail_id") AND (`meta`.`meta_key` = "_wp_attached_file") AND (`wp_postmeta`.`post_id` = 4895)
+
+SELECT childmeta.* 
+FROM wp_postmeta childmeta 
+INNER JOIN wp_postmeta parentmeta ON (childmeta.post_id=parentmeta.meta_value)
+WHERE parentmeta.meta_key='_thumbnail_id' AND childmeta.meta_key = "_wp_attached_file"
+AND parentmeta.post_id=4895
+
+# all image post records
+SELECT * FROM wp_posts WHERE post_type = "attachment" AND post_status="inherit"
+
 Usage
 ^^^^^
 
@@ -68,74 +100,4 @@ Usage
 Important: First start import of categories if any. Afterwards reopen the module to import news.
 If you don't reopen the module, some news can be imported twice.
 
-
-Plugin migration
-----------------
-
-You can migrate the plugins of `tt_news` to `news` by using the command line.
-
-Be aware that not all options are migrated. Supported are:
-
-* what_to_display
-* listOrderBy (except: archivedate, author, type, random)
-* ascDesc
-* categoryMode
-* categorySelection
-* useSubCategories
-* archive
-* imageMaxWidth
-* imageMaxHeight
-* listLimit
-* noPageBrowser
-* croppingLenght
-* PIDitemDisplay
-* backPid
-* pages
-* recursive
-
-**not supported:**
-
-* croppingLenghtOptionSplit
-* firstImageIsPreview
-* forceFirstImageIsPreview
-* myTS
-* template_file
-* altLayoutsOptionSplit
-* maxWordsInSingleView
-* catImageMode
-* catImageMaxWidth
-* catImageMaxHeight
-* maxCatImages
-* catTextMode
-* maxCatTexts
-* alternatingLayouts
-
-Usage
-^^^^^
-
-**Important:** Run the plugin migration **after** the record migration!
-
-.. code-block:: bash
-
-	# Gives you some information about how many plugins are still to be migrated
-	./typo3/cli_dispatch.phpsh extbase wordpresspluginmigrate:check
-
-.. code-block:: bash
-
-	# Creates the plugins for *EXT:news* by creating a new record below the plugin of *EXT:tt_news*.
-	# This makes it possible for you to cross check the migration and adapt the plugins.
-	./typo3/cli_dispatch.phpsh extbase wordpresspluginmigrate:run
-
-.. code-block:: bash
-
-	# Replace tt_news plugins directly without creating copies. 
-	./typo3/cli_dispatch.phpsh extbase wordpresspluginmigrate:replace
-
-.. code-block:: bash
-
-	# Hide the old tt_news plugins.
-	./typo3/cli_dispatch.phpsh extbase wordpresspluginmigrate:removeOldPlugins
-
-	# Deletes the old tt_news plugins.
-	./typo3/cli_dispatch.phpsh extbase wordpresspluginmigrate:removeOldPlugins delete=1
 

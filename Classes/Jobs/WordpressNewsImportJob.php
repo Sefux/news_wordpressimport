@@ -25,6 +25,7 @@ namespace Projektkater\NewsWordpressimport\Jobs;
 ***************************************************************/
 use GeorgRinger\News\Domain\Service\NewsImportService;
 use GeorgRinger\News\Jobs\AbstractImportJob;
+use Projektkater\NewsWordpressimport\Service\Import\WordpressNewsDataProviderService;
 
 /**
  * Import job
@@ -41,15 +42,19 @@ class WordpressNewsImportJob extends AbstractImportJob {
 	protected $importServiceSettings = array(
 		'findCategoriesByImportSource' => 'WP_CATEGORY_IMPORT'
 	);
+	
+	/**
+	 * @var WordpressNewsDataProviderService
+	 */
+	protected $importDataProviderService;
 
 	/**
 	 * Inject import dataprovider service
 	 *
-	 * @param \Projektkater\NewsWordpressimport\Service\Import\WordpressNewsDataProviderService $importDataProviderService
+	 * @param WordpressNewsDataProviderService $importDataProviderService
 	 * @return void
 	 */
-	public function injectImportDataProviderService(\Projektkater\NewsWordpressimport\Service\Import\WordpressNewsDataProviderService
-		$importDataProviderService) {
+	public function injectImportDataProviderService(WordpressNewsDataProviderService $importDataProviderService) {
 
 		$this->importDataProviderService = $importDataProviderService;
 	}

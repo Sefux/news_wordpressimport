@@ -17,7 +17,7 @@ use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 /**
- * tt_news category import service
+ * wordpress category import service
  *
  * @package TYPO3
  * @subpackage tx_news

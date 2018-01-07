@@ -24,9 +24,14 @@ namespace Projektkater\NewsWordpressimport\Service\Import;
 *  This copyright notice MUST APPEAR in all copies of the script!
 ***************************************************************/
 use GeorgRinger\News\Service\Import\DataProviderServiceInterface;
+use \TYPO3\CMS\Core\Utility\GeneralUtility;
+use \TYPO3\CMS\Core\Utility\DebugUtility;
+
+use TYPO3\CMS\Core\Database\ConnectionPool;
+use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 
 /**
- * tt_news category ImportService
+ * Wordpress category ImportService
  *
  * @package TYPO3
  * @subpackage news_wordpressimport
@@ -35,6 +40,11 @@ class WordpressCategoryDataProviderService implements DataProviderServiceInterfa
 
 	protected $importSource = 'WP_CATEGORY_IMPORT';
 	protected $importPid = 21;
+	
+	public function __construct() {
+        $logger = GeneralUtility::makeInstance('TYPO3\CMS\Core\Log\LogManager')->getLogger(__CLASS__);
+        $this->logger = $logger;
+    }
 
 	/**
 	 * Get total count of category records
@@ -42,6 +52,7 @@ class WordpressCategoryDataProviderService implements DataProviderServiceInterfa
 	 * @return integer
 	 */
 	public function getTotalRecordCount() {
+		/*
 		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('count(*)',
 			'wp_term_taxonomy as tt LEFT JOIN wp_terms as t ON tt.term_id = t.term_id',
 			'tt.taxonomy="category" ' // OR tt.taxonomy="post_tag"
@@ -49,7 +60,32 @@ class WordpressCategoryDataProviderService implements DataProviderServiceInterfa
 
 		list($count) = $GLOBALS['TYPO3_DB']->sql_fetch_row($res);
 		$GLOBALS['TYPO3_DB']->sql_free_result($res);
-
+		*/
+		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_posts');
+		
+		$statement = $queryBuilder
+				->count('wp_term_taxonomy.term_id')
+				->from('wp_term_taxonomy')   
+				->join(
+					'wp_term_taxonomy',
+					'wp_terms',
+					't',
+					$queryBuilder->expr()->eq(
+					 'wp_term_taxonomy.term_id',
+					 $queryBuilder->quoteIdentifier('t.term_id')
+					)
+					) 
+				->where(
+					$queryBuilder->expr()->eq('wp_term_taxonomy.taxonomy', '"category"')
+				)
+				->execute();
+		$sql = $queryBuilder->getSQL();
+		$count = $statement->fetchColumn(0);
+		
+		$this->logger->info(sprintf('START: Counting wordpress categories: %s ', $count));
+		
+		$this->logger->info(sprintf('SQL:   "%s" ', $sql));
+		
 		return (int)$count;
 	}
 
@@ -62,7 +98,7 @@ class WordpressCategoryDataProviderService implements DataProviderServiceInterfa
 	 */
 	public function getImportData($offset = 0, $limit = 200) {
 		$importData = array();
-
+/*
 		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('*',
 			'wp_term_taxonomy as tt LEFT JOIN wp_terms as t ON tt.term_id = t.term_id',
 			'tt.taxonomy="category"' //  OR tt.taxonomy="post_tag"
@@ -70,23 +106,47 @@ class WordpressCategoryDataProviderService implements DataProviderServiceInterfa
 			'',
 			$offset . ',' . $limit
 		);
+		*/
+		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_term_taxonomy');
+		
+		$statement = $queryBuilder
+				->select('*')
+				->from('wp_term_taxonomy')   
+				->join(
+					'wp_term_taxonomy',
+					'wp_terms',
+					't',
+					$queryBuilder->expr()->eq(
+					 'wp_term_taxonomy.term_id',
+					 $queryBuilder->quoteIdentifier('t.term_id')
+					)
+					) 
+				->where(
+					$queryBuilder->expr()->eq('wp_term_taxonomy.taxonomy', '"category"')
+				)
+				->setMaxResults($limit)
+   				->setFirstResult($offset)
+				->execute();
+		$sql = $queryBuilder->getSQL();
+		$this->logger->info(sprintf('IMPORT CATEGROIES SQL:   "%s" ', $sql));
 
-		while ($row = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)) {
+		while ($row = $statement->fetch()) {
+			$this->logger->info('IMPORT DATA ROW', $row);
 			$importData[] = array(
 				'uid' => $row['term_taxonomy_id'],
 				'pid' => $this->importPid,
 				//'hidden' => $row['hidden'],
 				'title'	=>	$row['name'],
 				'description' => $row['description'],
-				'image' => $row['image'] ? 'uploads/pics/' . $row['image'] : '',
-				'shortcut' => $row['shortcut'],
-				'single_pid' => $row['single_pid'],
+				//'image' => $row['image'] ? 'uploads/pics/' . $row['image'] : '',
+				//'shortcut' => $row['shortcut'],
+				//'single_pid' => $row['single_pid'],
 				'parentcategory' => $row['parent'],
 				'import_id' =>  $row['term_taxonomy_id'],
 				'import_source' => $this->importSource
 			);
 		}
-		$GLOBALS['TYPO3_DB']->sql_free_result($res);
+		
 
 		return $importData;
 	}
