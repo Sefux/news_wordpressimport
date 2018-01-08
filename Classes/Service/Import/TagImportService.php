@@ -67,18 +67,17 @@ class TagImportService extends \GeorgRinger\News\Domain\Service\AbstractImportSe
 
         // Sort import array to import the default language first
         foreach ($importArray as $importItem) {
-            $this->logger->info('import for tag ok');
             
             /*
             $arguments = ['importItem' => $importItem];
             $return = $this->emitSignal('preHydrate', $arguments);
             $importItem = $return['importItem'];
             */
-            $this->logger->info('import for tag', $importItem);
+            
             $tag = $this->hydrateTag($importItem);
             
         }
-$this->logger->info(sprintf('Finished import for %s tags', count($importArray)));
+        $this->logger->info(sprintf('Finished import for %s tags', count($importArray)));
         $this->persistenceManager->persistAll();
 
     }
@@ -91,32 +90,33 @@ $this->logger->info(sprintf('Finished import for %s tags', count($importArray)))
      */
     protected function hydrateTag(array $importItem)
     {
-        $tag = $this->tagRepository->findOneByImportSourceAndImportId($importItem['import_source'],
-            $importItem['import_id']);
+        //TODO: make this work also probably by findOneByTitle (does it have to be a demanded repository)
+        //$tag = $this->tagRepository->findOneByImportSourceAndImportId($importItem['import_source'], $importItem['import_id']);
 
         $this->logger->info(sprintf('Import of tag from source "%s" with id "%s"', $importItem['import_source'],
             $importItem['import_id']));
 
-        if (is_null($tag)) {
+        //if (is_null($tag)) {
             $this->logger->info('Tag is new');
 
             $tag = $this->objectManager->get(\GeorgRinger\News\Domain\Model\Tag::class);
             $this->tagRepository->add($tag);
-        } else {
-            $this->logger->info(sprintf('Tag exists already with id "%s".', $tag->getUid()));
-        }
+        //} else {
+        //    $this->logger->info(sprintf('Tag exists already with id "%s".', $tag->getUid()));
+        //}
 
         $tag->setPid($importItem['pid']);
-        $tag->setHidden($importItem['hidden']);
-        $tag->setStarttime($importItem['starttime']);
-        $tag->setEndtime($importItem['endtime']);
+        
+        //$tag->setHidden($importItem['hidden']);
+        //$tag->setStarttime($importItem['starttime']);
+        //$tag->setEndtime($importItem['endtime']);
         $tag->setCrdate($importItem['crdate']);
         $tag->setTstamp($importItem['tstamp']);
         $tag->setTitle($importItem['title']);
         //TODO: add missing fields from tag model
 
-        $tag->setImportId($importItem['import_id']);
-        $tag->setImportSource($importItem['import_source']);
+        //$tag->setImportId($importItem['import_id']);
+        //$tag->setImportSource($importItem['import_source']);
 
 /*
         $arguments = ['importItem' => $importItem, 'tag' => $tag];

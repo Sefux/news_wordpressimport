@@ -52,15 +52,7 @@ class WordpressTagDataProviderService implements DataProviderServiceInterface, \
 	 * @return integer
 	 */
 	public function getTotalRecordCount() {
-		/*
-		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('count(*)',
-			'wp_term_taxonomy as tt LEFT JOIN wp_terms as t ON tt.term_id = t.term_id',
-			'tt.taxonomy="tag" ' // OR tt.taxonomy="post_tag"
-		);
-
-		list($count) = $GLOBALS['TYPO3_DB']->sql_fetch_row($res);
-		$GLOBALS['TYPO3_DB']->sql_free_result($res);
-		*/
+		
 		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_posts');
 		
 		$statement = $queryBuilder
@@ -98,15 +90,7 @@ class WordpressTagDataProviderService implements DataProviderServiceInterface, \
 	 */
 	public function getImportData($offset = 0, $limit = 200) {
 		$importData = array();
-/*
-		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('*',
-			'wp_term_taxonomy as tt LEFT JOIN wp_terms as t ON tt.term_id = t.term_id',
-			'tt.taxonomy="tag"' //  OR tt.taxonomy="post_tag"
-			'',
-			'',
-			$offset . ',' . $limit
-		);
-		*/
+
 		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_term_taxonomy');
 		
 		$statement = $queryBuilder
@@ -138,9 +122,6 @@ class WordpressTagDataProviderService implements DataProviderServiceInterface, \
 				//'hidden' => $row['hidden'],
 				'title'	=>	$row['name'],
 				'description' => $row['description'],
-				//'image' => $row['image'] ? 'uploads/pics/' . $row['image'] : '',
-				//'shortcut' => $row['shortcut'],
-				//'single_pid' => $row['single_pid'],
 				'import_id' =>  $row['term_taxonomy_id'],
 				'import_source' => $this->importSource
 			);
