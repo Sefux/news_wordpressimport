@@ -91,6 +91,14 @@ AND parentmeta.post_id=4895
 # all image post records
 SELECT * FROM wp_posts WHERE post_type = "attachment" AND post_status="inherit"
 
+# all tags for post
+SELECT object_id, name, slug FROM wp_terms
+INNER JOIN wp_term_taxonomy
+ON wp_term_taxonomy.term_id = wp_terms.term_id
+INNER JOIN wp_term_relationships
+ON wp_term_relationships.term_taxonomy_id = wp_term_taxonomy.term_taxonomy_id
+WHERE taxonomy = "post_tag" and object_id=370 order by object_id
+
 Usage
 ^^^^^
 

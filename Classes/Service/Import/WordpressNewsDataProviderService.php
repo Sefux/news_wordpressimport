@@ -32,6 +32,8 @@ use \TYPO3\CMS\Core\Utility\DebugUtility;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Database\Query\QueryBuilder;
 
+use GeorgRinger\News\Domain\Repository\TagRepository;
+
 /**
  * wordpress ImportService
  *
@@ -42,6 +44,11 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 
 	protected $importSource = 'WP_NEWS_IMPORT';
 	protected $importPid = 21;
+	
+	/**
+     * @var \GeorgRinger\News\Domain\Repository\TagRepository
+     */
+    protected $tagRepository;
 
 	/**
 	*	constructor
@@ -49,8 +56,20 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 	public function __construct() {
 		$logger = GeneralUtility::makeInstance('TYPO3\CMS\Core\Log\LogManager')->getLogger(__CLASS__);
 		$this->logger = $logger;
+		
+		$objectManager = GeneralUtility::makeInstance('TYPO3\CMS\Extbase\Object\ObjectManager');
+		$this->tagRepository = $objectManager->get('GeorgRinger\News\Domain\Repository\TagRepository');
 	}
-
+	
+	/**
+	 * @param \GeorgRinger\News\Domain\Repository\TagRepository
+	 */
+	public function injectTagRepository(\GeorgRinger\News\Domain\Repository\TagRepository $tagRepository) {
+	  $this->tagRepository = $tagRepository;
+	  //$querySettings = $this->tagRepository->createQuery()->getQuerySettings();
+	  //$querySettings->setStoragePageIds(array(21));
+	  //$this->tagRepository->setDefaultQuerySettings($querySettings);
+	}
 	
 	/**
 	 * Get total record count
@@ -59,31 +78,23 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 	 */
 	public function getTotalRecordCount() {
 		$count = 0;
-		/*
-		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('count(*)',
-			'wp_posts',
-			'posts_type="POST" and post_status="publish"'
-		);
-		list($count) = $GLOBALS['TYPO3_DB']->sql_fetch_row($res);
-		$GLOBALS['TYPO3_DB']->sql_free_result($res);			
-*/
 		
 		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_posts');
 		
 		$statement = $queryBuilder
 				->count('*')
-    			->from('wp_posts')    
+				->from('wp_posts')    
 				->where(
 				    $queryBuilder->expr()->eq('post_type', '"POST"'),
 					$queryBuilder->expr()->eq('post_status', '"publish"')
 				)
-    			->execute();
-		$sql = $queryBuilder->getSQL();
+				->execute();
+		
 		$count = $statement->fetchColumn(0);
 		
 		$this->logger->info(sprintf('START: Counting wordpress posts: %s ', $count));
-		
-	//	$this->logger->info(sprintf('SQL:   "%s" ', $sql));
+		//$sql = $queryBuilder->getSQL();
+		//$this->logger->info(sprintf('SQL:   "%s" ', $sql));
 		
 		//return 10;
 		return (int)$count;
@@ -98,17 +109,9 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 	 */
 	public function getImportData($offset = 0, $limit = 50) {
 		$importData = array();
-		/*
-		$res = $GLOBALS['TYPO3_DB']->exec_SELECTquery('*',
-			'wp_posts',
-			'posts_type="POST" and post_status="publish"',
-			'',
-			'post_date DESC',
-			$offset . ',' . $limit
-		);
-		*/
-		//echo 'check';
+		
 		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_posts');
+		
 		$statement = $queryBuilder->select('*')
     			->from('wp_posts')    
 				->where(
@@ -146,6 +149,7 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 				//'keywords' => $row['keywords'],
 				//'externalurl' => $row['ext_url'],
 				//'internalurl' => $row['page'],
+				'tags' => $this->getTags($row['ID']),
 				'categories' => $this->getCategories($row['ID']),
 				'media' => $this->getMedia($row),
 				//'related_files' => $this->getFiles($row),
@@ -161,40 +165,6 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 	}
 
 	/**
-	 * Parses the related files
-	 *
-	 * @param array $row
-	 * @return array
-	 */
-	protected function getFiles(array $row) {
-		$relatedFiles = array();
-
-		// tx_damnews_dam_media
-		if (!empty($row['tx_damnews_dam_media'])) {
-
-			// get DAM items
-			$files = $this->getDamItems($row['uid'], 'tx_damnews_dam_media');
-			foreach ($files as $damUid => $file) {
-				$relatedFiles[] = array(
-					'file' => $file
-				);
-			}
-		}
-
-		if (!empty($row['news_files'])) {
-			$files = GeneralUtility::trimExplode(',', $row['news_files']);
-
-			foreach ($files as $file) {
-				$relatedFiles[] = array(
-					'file' => 'uploads/media/' . $file
-				);
-			}
-		}
-
-		return $relatedFiles;
-	}
-
-	/**
 	 * Get correct categories of a news record
 	 *
 	 * @param integer $newsUid news uid
@@ -205,15 +175,14 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 
 		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_term_relationships');
 		$statement = $queryBuilder->select('*')
-    			->from('wp_term_relationships') 
+				->from('wp_term_relationships') 
 				->where(
 					$queryBuilder->expr()->eq('object_id', $newsUid)
 				)
-    			->execute();
+				->execute();
 		$sql = $queryBuilder->getSQL();
 		$this->logger->info(sprintf('IMPORT CATEGORIE SQL:   "%s" ', $sql));
 	
-
 		while ($row = $statement->fetch()) {
 			$categories[] = $row['term_taxonomy_id'];
 		}
@@ -222,6 +191,63 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 		return $categories;
 	}
 
+	/**
+	 * Get correct tags of a news record
+	 *
+	 * @param integer $newsUid news uid
+	 * @return array
+	 */
+	protected function getTags($newsUid) {
+		$tags = array();
+		
+		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_term_relationships');
+		
+		$statement = $queryBuilder->select('wp_terms.name as name')
+    			->from('wp_terms')
+				->join(
+					'wp_terms',
+					'wp_term_taxonomy',
+					'tt',
+					$queryBuilder->expr()->eq('wp_terms.term_id', $queryBuilder->quoteIdentifier('tt.term_id'))
+					) 
+				->join(
+					'tt',
+					'wp_term_relationships',
+					'wp_term_relationships',
+					$queryBuilder->expr()->eq('wp_term_relationships.term_taxonomy_id', $queryBuilder->quoteIdentifier('tt.term_taxonomy_id'))
+					) 	
+				->where(
+					$queryBuilder->expr()->eq('tt.taxonomy', '"post_tag"'),
+					$queryBuilder->expr()->eq('wp_term_relationships.object_id', $newsUid)
+				)
+				->execute();
+			
+		//TODO: remove this mieser hack... this (nad other repository function) does not work
+		//$tag = $this->tagRepository->findByTitle('2012');
+		$whereExpressions = array();
+		$where = '';
+		while ($row = $statement->fetch()) {
+			//$whereExpressions[] = $tagQueryBuilder->expr()->eq('title', '"'.$row['name'].'"');
+			$where .= ' OR title="'.$row['name'].'"';
+		}
+		//if(count($whereExpressions)) {
+		if($where != '') {
+			$tagQueryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tx_news_domain_model_tag');
+			$tagStatement = $tagQueryBuilder->select('*')
+				->from('tx_news_domain_model_tag')
+				->where(
+					'uid = 0 '.$where
+				)
+				->execute();
+			//$sql = $tagQueryBuilder->getSQL();	
+			//$this->logger->info('TAGREPO : '.$sql, (array) $tagRow['uid']);
+			while ($tagRow = $tagStatement->fetch()) {
+				$tags[] = $tagRow['uid'];
+			}
+		}	
+		return $tags;
+	}
+	
 	/**
 	 * Get correct media elements to be imported
 	 *
@@ -269,10 +295,8 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 		    			->execute();
 					$meta_row = $meta_statement->fetch();
 						
-		$sql = $queryBuilderMeta->getSQL();
+		//$sql = $queryBuilderMeta->getSQL();
 		
-	
-
 		while ($image = $statement->fetch()) {
 			$this->logger->info(sprintf('SEARCH IMAGE SQL:   "%s" ', $sql));
 				$media[] = array(
@@ -292,121 +316,4 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 		//return array();
 	}
 
-	/**
-	 * Get link elements to be imported
-	 *
-	 * @param string $newsLinks
-	 * @return array
-	 */
-	protected function getRelatedLinks($newsLinks) {
-		$links = array();
-
-		if (empty($newsLinks)) {
-			return $links;
-		}
-
-		$newsLinks = str_replace(array('<link ', '</link>'), array('<LINK ', '</LINK>'), $newsLinks);
-
-		$linkList = GeneralUtility::trimExplode('</LINK>', $newsLinks, TRUE);
-		foreach ($linkList as $singleLink) {
-			if (strpos($singleLink, '<LINK') === FALSE) {
-				continue;
-			}
-			$title = substr(strrchr($singleLink, '>'), 1);
-			$uri = str_replace('>' . $title, '', substr(strrchr($singleLink, '<link '), 6));
-			$links[] = array(
-				'uri' => $uri,
-				'title' => $title,
-				'description' => '',
-			);
-		}
-		return $links;
-	}
-
-	/**
-	 * Get link elements to be imported when using EXT:tl_news_linktext
-	 * This extension adds an additional field for link texts that are separated by a line break
-	 *
-	 * @param string $newsLinks
-	 * @param string $newsLinksTexts
-	 * @return array
-	 */
-	protected function getRelatedLinksTlNewsLinktext($newsLinks, $newsLinksTexts) {
-		$links = array();
-
-		if (empty($newsLinks)) {
-			return $links;
-		}
-
-		$newsLinks = str_replace("\r\n", "\n", $newsLinks);
-		$newsLinksTexts = str_replace("\r\n", "\n", $newsLinksTexts);
-
-		$linkList = GeneralUtility::trimExplode("\n", $newsLinks, TRUE);
-		$linkTextList = GeneralUtility::trimExplode("\n", $newsLinksTexts, TRUE);
-
-		$iterator = 0;
-		foreach ($linkList as $uri) {
-			$links[] = array(
-				'uri' => $uri,
-				'title' => array_key_exists($iterator, $linkTextList) ? $linkTextList[$iterator] : $uri,
-				'description' => '',
-			);
-			$iterator++;
-		}
-		return $links;
-	}
-
-	/**
-	 * Get DAM file names
-	 *
-	 * @param $newsUid
-	 * @param $field
-	 * @return array
-	 */
-	protected function getDamItems($newsUid, $field) {
-
-		$files = array();
-
-		$res = $GLOBALS['TYPO3_DB']->exec_SELECT_mm_query('tx_dam.uid, tx_dam.file_name, tx_dam.file_path',
-			'tx_dam', 'tx_dam_mm_ref', 'tt_news',
-			'AND tx_dam_mm_ref.tablenames="tt_news" AND tx_dam_mm_ref.ident="'.$field.'" ' .
-			'AND tx_dam_mm_ref.uid_foreign="' . $newsUid . '"', '', 'tx_dam_mm_ref.sorting_foreign ASC');
-
-		while ($row = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)) {
-			$files[$row['uid']] = $row['file_path'].$row['file_name'];
-		}
-		$GLOBALS['TYPO3_DB']->sql_free_result($res);
-
-		return $files;
-	}
-
-	/**
-	 * Parse row for custom plugin info
-	 *
-	 * @param $row current row
-	 * @return array
-	 */
-	protected function getMultimediaItems($row) {
-
-		$media = array();
-
-		/**
-		 * Ext:jg_youtubeinnews
-		 */
-		if (!empty($row['tx_jgyoutubeinnews_embed'])) {
-			if (preg_match_all('#((http|https)://)?([a-zA-Z0-9\-]*\.)+youtube([a-zA-Z0-9\-]*\.)+[a-zA-Z0-9]{2,4}(/[a-zA-Z0-9=.?&_-]*)*#i', $row['tx_jgyoutubeinnews_embed'], $matches)) {
-				$matches = array_unique($matches[0]);
-				foreach ($matches as $url) {
-					$urlInfo = parse_url($url);
-					$media[] = array(
-						'type' => \Tx_News_Domain_Model_Media::MEDIA_TYPE_MULTIMEDIA,
-						'multimedia' => $url,
-						'title' => $urlInfo['host'],
-					);
-				}
-			}
-		}
-
-		return $media;
-	}
 }
