@@ -1,0 +1,6 @@
+# cat=basic/enable; type=string; label=PID where news records should be created
+storagePid = 21
+# cat=basic/enable; type=string; label=UID of file storage where your migrated images are located
+fileStorageUid = 1
+# cat=basic/enable; type=string; label=Path to your migrated images in file storage (e.g. your wordpress uploads folder)
+fileStoragePath = archive

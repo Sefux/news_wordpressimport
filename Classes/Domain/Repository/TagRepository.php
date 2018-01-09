@@ -3,7 +3,8 @@
 namespace Projektkater\NewsWordpressimport\Domain\Repository;
 
 /**
- * This file is part of the "news" Extension for TYPO3 CMS.
+ * This file is part of the "NewsWordpressimport" Extension for TYPO3 CMS.
+ * TODO: this repository is not in use
  *
  * For the full copyright and license information, please read the
  * LICENSE.txt file that was distributed with this source code.
@@ -31,7 +32,7 @@ class TagRepository extends \GeorgRinger\News\Domain\Repository\TagRepository
      * @param int $importId import id
      * @return Tag
      */
-    /*
+    
     public function findOneByImportSourceAndImportId($importSource, $importId)
     {
         $this->logger->info('call findOneByImportSourceAndImportId');

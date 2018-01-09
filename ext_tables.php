@@ -17,9 +17,3 @@ if (!defined('TYPO3_MODE')) {
 	'Projektkater\\NewsWordpressimport\\Jobs\\WordpressTagImportJob',
 	'LLL:EXT:news_wordpressimport/Resources/Private/Language/locallang_be.xml:wordpresstag_importer_title',
 	'');
-/*
-\GeorgRinger\News\Utility\ImportJob::register(
-	'Projektkater\\NewsWordpressimport\\Jobs\\DamMediaTagConversionJob',
-	'LLL:EXT:news_wordpressimport/Resources/Private/Language/locallang_be.xml:dammediatag_converter_title',
-	'');
-*/

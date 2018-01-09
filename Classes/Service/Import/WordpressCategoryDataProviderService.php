@@ -44,6 +44,10 @@ class WordpressCategoryDataProviderService implements DataProviderServiceInterfa
 	public function __construct() {
         $logger = GeneralUtility::makeInstance('TYPO3\CMS\Core\Log\LogManager')->getLogger(__CLASS__);
         $this->logger = $logger;
+		
+		$emConfiguration = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf']['news_wordpressimport']);
+		$this->importPid = $emConfiguration['storagePid'];
+		
     }
 
 	/**

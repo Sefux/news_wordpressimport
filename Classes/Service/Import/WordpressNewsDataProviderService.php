@@ -44,6 +44,8 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 
 	protected $importSource = 'WP_NEWS_IMPORT';
 	protected $importPid = 21;
+	protected $fileStorageUid = 1;
+	protected $fileStoragePath = 'archive';
 	
 	/**
      * @var \GeorgRinger\News\Domain\Repository\TagRepository
@@ -59,6 +61,11 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 		
 		$objectManager = GeneralUtility::makeInstance('TYPO3\CMS\Extbase\Object\ObjectManager');
 		$this->tagRepository = $objectManager->get('GeorgRinger\News\Domain\Repository\TagRepository');
+		
+		$emConfiguration = unserialize($GLOBALS['TYPO3_CONF_VARS']['EXT']['extConf']['news_wordpressimport']);
+		$this->importPid = $emConfiguration['storagePid'];
+		$this->fileStorageUid = (int)$emConfiguration['fileStorageUid'];
+		$this->fileStoragePath = $emConfiguration['fileStoragePath'];
 	}
 	
 	/**
@@ -174,10 +181,17 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 		$categories = array();
 
 		$queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('wp_term_relationships');
-		$statement = $queryBuilder->select('*')
+		$statement = $queryBuilder->select('wp_term_relationships.term_taxonomy_id as term_taxonomy_id')
 				->from('wp_term_relationships') 
+				->join(
+					'wp_term_relationships',
+					'wp_term_taxonomy',
+					'tt',
+					$queryBuilder->expr()->eq('wp_term_relationships.term_taxonomy_id', $queryBuilder->quoteIdentifier('tt.term_taxonomy_id'))
+					) 
 				->where(
-					$queryBuilder->expr()->eq('object_id', $newsUid)
+					$queryBuilder->expr()->eq('wp_term_relationships.object_id', $newsUid),
+					$queryBuilder->expr()->eq('tt.taxonomy', '"category"')
 				)
 				->execute();
 		$sql = $queryBuilder->getSQL();
@@ -296,24 +310,18 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 					$meta_row = $meta_statement->fetch();
 						
 		//$sql = $queryBuilderMeta->getSQL();
-		
+		//$this->logger->info(sprintf('SEARCH IMAGE SQL:   "%s" ', $sql));
 		while ($image = $statement->fetch()) {
-			$this->logger->info(sprintf('SEARCH IMAGE SQL:   "%s" ', $sql));
-				$media[] = array(
-					'title' => $image['post_title'],
-					'alt' => $image['post_excerpt'],
-					'caption' => $image['post_content'],
-					'image' => "1:archive/".$meta_row['meta_value'],
-					'type' => 0,
-					'showinpreview' => 1
-				);
-			
+			$media[] = array(
+				'title' => $image['post_title'],
+				'alt' => $image['post_excerpt'],
+				'caption' => $image['post_content'],
+				'image' => $this->fileStorageUid . ":" . $this->fileStoragePath . "/" . $meta_row['meta_value'],
+				'type' => 0,
+				'showinpreview' => 1
+			);
 		}
-		
-		//$media = array_merge($media, $this->getMultimediaItems($row));
 		$this->logger->info(sprintf('FOUND MEDIA:   "%s" ', $row['ID']), $media);
 		return $media;
-		//return array();
 	}
-
 }
