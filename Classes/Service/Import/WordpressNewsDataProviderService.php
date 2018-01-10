@@ -160,7 +160,7 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 				'media' => $this->getMedia($row),
 				//'related_files' => $this->getFiles($row),
 				//'related_links' => array_key_exists('tx_tlnewslinktext_linktext', $row) ? $this->getRelatedLinksTlNewsLinktext($row['links'], $row['tx_tlnewslinktext_linktext']) : $this->getRelatedLinks($row['links']),
-				//'content_elements' => $row['tx_rgnewsce_ce'],
+				//'content_elements' => $this->createContentForNggallery(row['post_content']),
 				'import_id' => $row['ID'],
 				'import_source' => $this->importSource
 			);
@@ -168,6 +168,68 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 		
 		return $importData;
 		//return array();
+	}
+	
+	/**
+	 * Create content-elements for nggallery tags
+	 *
+	 * @param integer $newsUid news uid
+	 * @return array
+	 */
+	protected function createContentForNggallery($post_content) {
+		$ttContents = array();
+		//find gallery shortcodes
+		$matches = null;
+		preg_match_all( '/\[.*nggallery.*id\=(\d+).*?\]/si', $post_content, $matches );
+	
+		
+		foreach ( $matches[1] as $shortcodeId ) {
+			/*
+			//taken from https://github.com/stefansenk/convert-nextgen-galleries/blob/master/convert-nextgen-galleries.php
+			//TODO: convert to typo3
+			$gallery_directory = $wpdb->get_var( $wpdb->prepare( "SELECT path FROM {$wpdb->prefix}ngg_gallery WHERE gid = %d", $gallery_id ) );
+			$images = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}ngg_pictures WHERE galleryid = %d ORDER BY sortorder, pid ASC", $gallery_id ) );
+			$attachment_ids = array();
+			foreach ( $images as $image ) {
+				$existing_image_path =  ABSPATH . trailingslashit( $gallery_directory ) . $image->filename;
+				if ( ! file_exists ($existing_image_path) ) {
+					echo "ERROR: File '$existing_image_path' not found.<br>";
+					continue;
+				}
+				$tmp_image_path = get_temp_dir() . $image->filename;
+				copy($existing_image_path, $tmp_image_path);
+				$file_array['name'] = $image->filename;
+				$file_array['tmp_name'] = $tmp_image_path;
+				if ( ! trim( $image->alttext ) )
+					$image->alttext = $image->filename;
+				$post_data = array(
+					'post_title' => $image->alttext,
+					// 'post_content' => $image->alttext,
+					'post_excerpt' => $image->description,
+					'menu_order' => $image->sortorder
+				);
+				$id = media_handle_sideload( $file_array, $post->ID, null, $post_data );
+				if ( is_wp_error($id) ) {
+					echo "ERROR: media_handle_sideload() filed for '$existing_image_path'.<br>";
+					continue;
+				}
+				array_push( $attachment_ids, $id );
+				$attachment = get_post( $id );
+				update_post_meta( $attachment->ID, '_wp_attachment_image_alt', $image->alttext );
+			}
+			if ( count( $attachment_ids ) == count( $images ) ) {
+				$new_shortcode = '[gallery columns="4" link="file" ids="'. implode( ',', $attachment_ids ) . '"]';
+				$post->post_content = str_replace( $shortcode, $new_shortcode, $post->post_content );
+				wp_update_post( $post );
+				echo "Replaced <code>$shortcode</code> with <code>$new_shortcode</code>.<br>";
+			} else {
+				echo "<p>Not replacing <code>$shortcode</code>. " . count( $attachment_ids ) . " of " . count( $images ) . " images converted.</p>";
+			}
+			
+			*/
+		}
+		
+		
 	}
 
 	/**
