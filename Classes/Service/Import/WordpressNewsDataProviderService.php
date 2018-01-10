@@ -92,8 +92,7 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 				->count('*')
 				->from('wp_posts')    
 				->where(
-				    $queryBuilder->expr()->eq('post_type', '"POST"'),
-					$queryBuilder->expr()->eq('post_status', '"publish"')
+				    $queryBuilder->expr()->eq('post_type', '"POST"')
 				)
 				->execute();
 		
@@ -122,8 +121,7 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 		$statement = $queryBuilder->select('*')
     			->from('wp_posts')    
 				->where(
-					$queryBuilder->expr()->eq('post_type', '"POST"'),
-					$queryBuilder->expr()->eq('post_status', '"publish"')
+					$queryBuilder->expr()->eq('post_type', '"POST"')
 				)
 				->orderBy('post_date')
 				->setMaxResults($limit)
@@ -136,6 +134,7 @@ class WordpressNewsDataProviderService implements DataProviderServiceInterface, 
 			$importData[] = array(
 				'pid' => $this->importPid,
 				'hidden' => ($row['post_status']=="publish" ? 0 : 1),
+				'deleted' => (($row['post_status']=="trash" || $row['post_status']=="auto-draft") ? 1 : 0),
 				'tstamp' => strtotime($row['post_modified']),
 				'crdate' => strtotime($row['post_date']),
 				'cruser_id' => $row['post_author'],
