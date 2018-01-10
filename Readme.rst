@@ -81,14 +81,20 @@ The records `wp_posts` entires (post_type=POST) are migrated to `tx_news_domain_
 .. code-block:: bash
 
 	# use to find image per post
-	SELECT * FROM `wp_postmeta` INNER JOIN `wp_posts` `image` ON `wp_postmeta`.`meta_value` = `image`.`ID` WHERE (`meta_key` = "_thumbnail_id") AND (`post_id` = 4895)
+	SELECT * FROM `wp_postmeta` 
+	INNER JOIN `wp_posts` `image` 
+	ON `wp_postmeta`.`meta_value` = `image`.`ID` 
+	WHERE (`meta_key` = "_thumbnail_id") 
+	AND (`post_id` = 4895)
 
 .. code-block:: bash
 
 	SELECT * FROM `wp_postmeta` 
 	INNER JOIN `wp_posts` `image` ON `wp_postmeta`.`meta_value` = `image`.`ID` 
 	INNER JOIN `wp_postmeta` `meta` ON `wp_postmeta`.`post_id` = `meta`.`meta_value` 
-	WHERE (`wp_postmeta`.`meta_key` = "_thumbnail_id") AND (`meta`.`meta_key` = "_wp_attached_file") AND (`wp_postmeta`.`post_id` = 4895)
+	WHERE (`wp_postmeta`.`meta_key` = "_thumbnail_id") 
+	AND (`meta`.`meta_key` = "_wp_attached_file") 
+	AND (`wp_postmeta`.`post_id` = 4895)
 
 .. code-block:: bash
 
@@ -103,7 +109,7 @@ The records `wp_posts` entires (post_type=POST) are migrated to `tx_news_domain_
 	# all image post records
 	SELECT * FROM wp_posts WHERE post_type = "attachment" AND post_status="inherit"
 
-Categories and Tags
+**Categories and Tags**
 
 .. code-block:: bash
 
